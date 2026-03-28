@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     console.log('Sending message to Groq API...', { message: message.substring(0, 50) });
 
     const completion = await groq.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.1-70b-versatile',
       max_tokens: 300,
       temperature: 0.7,
       messages: [
