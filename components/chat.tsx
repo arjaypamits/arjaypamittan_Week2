@@ -21,6 +21,7 @@ export default function Chat() {
     },
   ]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const quickQuestions = [
@@ -40,7 +41,7 @@ export default function Chat() {
   }, [messages]);
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isLoading) return;
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -70,6 +71,8 @@ export default function Chat() {
       return;
     }
 
+    setIsLoading(true);
+
     // Call Groq API
     try {
       const response = await fetch('/api/chat', {
@@ -78,9 +81,12 @@ export default function Chat() {
         body: JSON.stringify({ message: text }),
       });
 
-      if (!response.ok) throw new Error('API error');
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.details || 'API error');
+      }
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: data.reply,
@@ -89,13 +95,16 @@ export default function Chat() {
       };
       setMessages((prev) => [...prev, aiResponse]);
     } catch (error) {
+      console.error('Chat error:', error);
       const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, I couldn't process that. Try again!",
+        text: "I'm having trouble responding right now. Please try again in a moment!",
         sender: 'ai',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorResponse]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -186,18 +195,24 @@ export default function Chat() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && !isLoading) {
                     handleSendMessage(inputValue);
                   }
                 }}
                 placeholder="Ask about skills, projects..."
-                className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black disabled:bg-gray-50"
               />
               <button
                 onClick={() => handleSendMessage(inputValue)}
-                className="p-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors"
+                disabled={isLoading}
+                className="p-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors disabled:bg-gray-400"
               >
-                <Send size={18} />
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={18} />
+                )}
               </button>
             </div>
           </div>
