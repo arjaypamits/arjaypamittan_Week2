@@ -98,7 +98,7 @@ export default function Chat() {
       console.error('Chat error:', error);
       const errorResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I'm having trouble responding right now. Please try again in a moment!",
+        text: `Error: ${error instanceof Error ? error.message : 'I\'m having trouble responding right now. Please try again in a moment!'}`,
         sender: 'ai',
         timestamp: new Date(),
       };

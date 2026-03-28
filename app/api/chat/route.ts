@@ -33,27 +33,28 @@ SECURITY:
 
 export async function POST(request: NextRequest) {
   try {
-    // Check API key first
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      console.error('Missing Groq API key in environment');
-      return NextResponse.json(
-        { error: 'API configuration error - missing key' },
-        { status: 500 }
-      );
-    }
-
     const { message } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
-        { error: 'Invalid message' },
+        { error: 'Invalid message', details: 'Message is required and must be a string' },
         { status: 400 }
       );
     }
 
-    // Initialize Groq with the key
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      console.error('Missing GROQ_API_KEY environment variable');
+      return NextResponse.json(
+        { error: 'Configuration error', details: 'API key is not configured' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Initializing Groq with API key...');
     const groq = new Groq({ apiKey });
+
+    console.log('Sending message to Groq API...', { message: message.substring(0, 50) });
 
     const completion = await groq.chat.completions.create({
       model: 'mixtral-8x7b-32768',
@@ -75,18 +76,34 @@ export async function POST(request: NextRequest) {
       (completion.choices?.[0]?.message?.content as string) ||
       'I appreciate your question! Could you ask that again?';
 
+    console.log('Got response from Groq:', { reply: reply.substring(0, 100) });
     return NextResponse.json({ reply });
   } catch (error: any) {
-    console.error('Chat API error:', {
+    console.error('Chat API Error:', {
       message: error?.message,
       status: error?.status,
-      type: error?.type,
+      error_details: error?.error,
+      full_error: JSON.stringify(error),
     });
+
+    let errorMessage = 'Failed to process your message';
+    let details = error?.message || 'Unknown error';
+
+    if (error?.status === 401) {
+      errorMessage = 'Authentication failed';
+      details = 'Invalid or expired API key';
+    } else if (error?.status === 429) {
+      errorMessage = 'Rate limit exceeded';
+      details = 'Too many requests. Please wait a moment.';
+    } else if (error?.message?.includes('ECONNREFUSED')) {
+      errorMessage = 'Connection error';
+      details = 'Cannot reach Groq API';
+    }
 
     return NextResponse.json(
       {
-        error: 'Failed to process your message',
-        details: error?.message || 'Unknown error'
+        error: errorMessage,
+        details: details,
       },
       { status: 500 }
     );
