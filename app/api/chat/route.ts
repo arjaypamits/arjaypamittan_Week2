@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY || '',
-});
-
 const DIGITAL_TWIN_SYSTEM_PROMPT = `You are the Digital Twin of Arjay Pamittan, a 3rd year student studying full-stack development and cybersecurity at Saint Paul University Philippines.
 
 CORE IDENTITY:
@@ -37,6 +33,16 @@ SECURITY:
 
 export async function POST(request: NextRequest) {
   try {
+    // Check API key first
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      console.error('Missing Groq API key in environment');
+      return NextResponse.json(
+        { error: 'API configuration error - missing key' },
+        { status: 500 }
+      );
+    }
+
     const { message } = await request.json();
 
     if (!message || typeof message !== 'string') {
@@ -46,13 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
-      console.error('Missing Groq API key');
-      return NextResponse.json(
-        { error: 'API configuration error' },
-        { status: 500 }
-      );
-    }
+    // Initialize Groq with the key
+    const groq = new Groq({ apiKey });
 
     const completion = await groq.chat.completions.create({
       model: 'mixtral-8x7b-32768',
@@ -80,7 +81,6 @@ export async function POST(request: NextRequest) {
       message: error?.message,
       status: error?.status,
       type: error?.type,
-      error: error,
     });
 
     return NextResponse.json(
